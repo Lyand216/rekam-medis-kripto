@@ -1,0 +1,11 @@
+{
+  "name": "rekam-medis-kripto",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Pengamanan Rekam Medis Digital — Vigenere Cipher + Kriptografi Hibrida AES-256-GCM & RSA-2048-OAEP",
+  "scripts": {
+    "start": "npx --yes serve .",
+    "test": "node test/run.mjs"
+  }
+}

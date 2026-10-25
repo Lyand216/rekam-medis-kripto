@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SIM-RM Kripto — Pengamanan Rekam Medis Digital</title>
+<meta name="description" content="Pengamanan rekam medis digital dengan integrasi Vigenere Cipher dan kriptografi hibrida AES-256-GCM + RSA-2048-OAEP." />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='44' fill='none' stroke='%231F6E68' stroke-width='8'/%3E%3Ctext x='50' y='66' font-size='42' font-family='sans-serif' font-weight='700' text-anchor='middle' fill='%231F6E68'%3ERM%3C/text%3E%3C/svg%3E" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+<!-- Ikon SVG (stroke, konsisten) -->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
+  <symbol id="i-unlock" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-2"/></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="3.5"/><path d="M10.5 12.5 20 3"/><path d="M16 7l3 3"/><path d="M13 10l2 2"/></symbol>
+  <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 3"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="M7 11l5 5 5-5"/><path d="M4 21h16"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M4 12h15"/><path d="M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 4.5-3.2 7.6-8 9-4.8-1.4-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3 2 20h20z"/><path d="M12 9v5"/><path d="M12 17h.01"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12"/><path d="M18 6 6 18"/></symbol>
+  <symbol id="i-doc" viewBox="0 0 24 24"><path d="M6 2h8l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/></symbol>
+</svg>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<header class="masthead">
+  <div class="brand">
+    <div class="brand-mark" aria-hidden="true">RM</div>
+    <div class="brand-text">
+      <p class="eyebrow">Sistem Informasi Rekam Medis</p>
+      <h1>Pengamanan Rekam Medis Digital</h1>
+    </div>
+  </div>
+  <div class="head-status">
+    <span class="key-pill" id="keyBadge" data-state="loading">Menyiapkan kunci…</span>
+  </div>
+</header>
+
+<div class="layout">
+
+  <nav class="rail" aria-label="Menu utama">
+    <p class="rail-label">Menu</p>
+    <button class="tab active" data-tab="enkripsi">
+      <svg class="ico" aria-hidden="true"><use href="#i-lock"/></svg><span>Enkripsi</span>
+    </button>
+    <button class="tab" data-tab="dekripsi">
+      <svg class="ico" aria-hidden="true"><use href="#i-unlock"/></svg><span>Dekripsi</span>
+    </button>
+    <button class="tab" data-tab="kunci">
+      <svg class="ico" aria-hidden="true"><use href="#i-key"/></svg><span>Kunci RSA</span>
+    </button>
+    <button class="tab" data-tab="riwayat">
+      <svg class="ico" aria-hidden="true"><use href="#i-history"/></svg><span>Riwayat</span>
+    </button>
+    <button class="tab" data-tab="tentang">
+      <svg class="ico" aria-hidden="true"><use href="#i-book"/></svg><span>Tentang</span>
+    </button>
+
+    <div class="rail-seq">
+      <p class="rail-label">Alur Pengamanan</p>
+      <ol class="seq">
+        <li><span class="seq-no">01</span><div><b>Vigenere Cipher</b><span>penyamaran teks berbasis kunci</span></div></li>
+        <li><span class="seq-no">02</span><div><b>AES-256-GCM</b><span>enkripsi data + integritas</span></div></li>
+        <li><span class="seq-no">03</span><div><b>RSA-2048-OAEP</b><span>pembungkus kunci sesi</span></div></li>
+      </ol>
+    </div>
+  </nav>
+
+  <main class="main">
+
+    <!-- ============================ ENKRIPSI ============================ -->
+    <section class="panel active" data-panel="enkripsi">
+      <header class="panel-head">
+        <p class="eyebrow">01 — Enkripsi</p>
+        <h2>Enkripsi Rekam Medis</h2>
+        <p class="lede">Rekam medis disamarkan dengan Vigenere, lalu dienkripsi AES dan kuncinya dibungkus RSA.</p>
+      </header>
+
+      <div class="split">
+        <form id="formEncrypt" class="card form-card" autocomplete="off">
+          <div class="card-head">
+            <p class="card-title">Form Rekam Medis</p>
+            <p class="card-sub">Data pasien &amp; catatan klinis</p>
+          </div>
+
+          <div class="field-grid">
+            <label class="field">
+              <span class="field-label">Nomor / ID Rekam Medis</span>
+              <input id="fId" type="text" value="RM-2026-00123" />
+            </label>
+            <label class="field">
+              <span class="field-label">Nama Pasien</span>
+              <input id="fNama" type="text" value="Budi Santoso" />
+            </label>
+          </div>
+
+          <label class="field">
+            <span class="field-label">Unit / Diagnosis</span>
+            <input id="fUnit" type="text" value="Poli Umum · Hipertensi" />
+          </label>
+
+          <label class="field">
+            <span class="field-label">Isi Rekam Medis</span>
+            <textarea id="fIsi" rows="7">Pasien laki-laki 45 tahun. TD 150/95 mmHg, nadi 88/menit. Diagnosis hipertensi stadium 1. Terapi Amlodipine 5 mg sekali sehari. Kontrol ulang 2 minggu.</textarea>
+          </label>
+
+          <div class="security-strip">
+            <p class="strip-label">Lapisan Keamanan</p>
+            <label class="field">
+              <span class="field-label">Kata Kunci Vigenere</span>
+              <input id="fKey" type="text" value="RAHASIAMEDIS" />
+              <span class="field-hint">Hanya huruf A–Z yang dipakai; angka &amp; tanda baca diabaikan.</span>
+            </label>
+            <button type="submit" id="btnEncrypt" class="btn btn-seal">
+              <svg class="ico" aria-hidden="true"><use href="#i-lock"/></svg>
+              <span>Enkripsi &amp; Segel Dokumen</span>
+            </button>
+          </div>
+        </form>
+
+        <div class="output-col">
+          <div id="encEmpty" class="card empty">
+            <svg class="empty-ico" aria-hidden="true"><use href="#i-doc"/></svg>
+            <p class="empty-title">Belum ada dokumen terenkripsi</p>
+            <p class="empty-sub">Isi formulir lalu tekan <b>Enkripsi &amp; Segel Dokumen</b>.</p>
+          </div>
+
+          <div id="encResult" hidden>
+            <div class="record-doc card">
+              <div class="record-head">
+                <span class="record-title">Rekam Medis</span>
+                <span class="record-no" id="outRmNo"></span>
+                <span class="record-state" id="outState">Terenkripsi</span>
+              </div>
+              <pre id="outPlain" class="doc-body"></pre>
+              <div class="seal" id="encSeal" aria-hidden="true">
+                <span class="seal-top">Terenkripsi</span>
+                <span class="seal-bot">Rahasia · AES + RSA</span>
+              </div>
+            </div>
+
+            <div class="card annex">
+              <div class="annex-head">
+                <span>Output Kriptografi</span>
+                <span class="annex-tag" id="outMeta"></span>
+              </div>
+
+              <details open>
+                <summary><span class="det-ind"></span><span class="det-label">Teks tersamarkan Vigenere</span></summary>
+                <pre id="outVigenere" class="code-block"></pre>
+                <div class="steps-wrap" id="vigenereSteps"></div>
+              </details>
+
+              <details>
+                <summary><span class="det-ind"></span><span class="det-label">Ciphertext AES-256-GCM</span><span class="det-tag">base64</span></summary>
+                <textarea id="outCiphertext" class="code-block" rows="4" readonly></textarea>
+              </details>
+
+              <details>
+                <summary><span class="det-ind"></span><span class="det-label">Kunci AES dibungkus RSA-2048-OAEP</span><span class="det-tag">base64</span></summary>
+                <label class="mini-field">
+                  <span class="field-label">Wrapped key</span>
+                  <textarea id="outWrappedKey" class="code-block" rows="3" readonly></textarea>
+                </label>
+                <label class="mini-field">
+                  <span class="field-label">IV / Nonce</span>
+                  <input id="outIv" class="code-block" type="text" readonly />
+                </label>
+              </details>
+
+              <details>
+                <summary><span class="det-ind"></span><span class="det-label">Payload JSON</span><span class="det-tag">siap dikirim</span></summary>
+                <textarea id="outJson" class="code-block" rows="8" readonly></textarea>
+              </details>
+            </div>
+
+            <div class="actions">
+              <button class="btn btn-ghost" id="btnCopyCipher"><svg class="ico" aria-hidden="true"><use href="#i-copy"/></svg><span>Salin JSON</span></button>
+              <button class="btn btn-ghost" id="btnDownloadCipher"><svg class="ico" aria-hidden="true"><use href="#i-download"/></svg><span>Unduh</span></button>
+              <button class="btn btn-ghost" id="btnSendToDecrypt"><svg class="ico" aria-hidden="true"><use href="#i-send"/></svg><span>Uji Dekripsi</span></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================ DEKRIPSI ============================ -->
+    <section class="panel" data-panel="dekripsi">
+      <header class="panel-head">
+        <p class="eyebrow">02 — Dekripsi</p>
+        <h2>Dekripsi Rekam Medis</h2>
+        <p class="lede">Kunci privat membuka kunci AES, Vigenere mengembalikan teks asli, GCM memverifikasi integritas.</p>
+      </header>
+
+      <div class="split">
+        <form id="formDecrypt" class="card form-card" autocomplete="off">
+          <div class="card-head">
+            <p class="card-title">Dokumen Terenkripsi</p>
+            <p class="card-sub">Tempel payload hasil enkripsi</p>
+          </div>
+
+          <label class="field">
+            <span class="field-label">Payload JSON</span>
+            <textarea id="dPayload" class="code-block" rows="9">{ "v": 1, "alg": "…", "iv": "…", "wrappedKey": "…", "ciphertext": "…" }</textarea>
+          </label>
+
+          <label class="field">
+            <span class="field-label">Kata Kunci Vigenere</span>
+            <input id="dKey" type="text" value="RAHASIAMEDIS" />
+          </label>
+
+          <label class="field">
+            <span class="field-label">Kunci Privat <span class="opt">(opsional)</span></span>
+            <textarea id="dPrivPem" class="code-block" rows="3" placeholder="Kosongkan untuk memakai kunci privat sesi ini (PEM)"></textarea>
+            <span class="field-hint">Biarkan kosong jika memakai kunci yang dibuat di tab Kunci RSA.</span>
+          </label>
+
+          <button type="submit" id="btnDecrypt" class="btn btn-clinical">
+            <svg class="ico" aria-hidden="true"><use href="#i-unlock"/></svg>
+            <span>Dekripsi &amp; Verifikasi</span>
+          </button>
+        </form>
+
+        <div class="output-col">
+          <div id="decEmpty" class="card empty">
+            <svg class="empty-ico" aria-hidden="true"><use href="#i-doc"/></svg>
+            <p class="empty-title">Belum ada payload dimasukkan</p>
+            <p class="empty-sub">Gunakan <b>Uji Dekripsi</b> setelah enkripsi, atau muat dari tab Riwayat.</p>
+            <button class="btn btn-ghost" data-goto="riwayat"><svg class="ico" aria-hidden="true"><use href="#i-history"/></svg><span>Buka Riwayat</span></button>
+          </div>
+
+          <div id="decResult" hidden>
+            <div class="record-doc card">
+              <div class="record-head">
+                <span class="record-title">Rekam Medis</span>
+                <span class="record-state is-open">Terverifikasi</span>
+              </div>
+              <div id="decFields" class="record-fields"></div>
+              <details id="decRawWrap" hidden>
+                <summary><span class="det-ind"></span><span class="det-label">Plaintext mentah</span></summary>
+                <pre id="decRaw" class="code-block"></pre>
+              </details>
+              <div class="seal seal-green" id="decSeal" aria-hidden="true">
+                <span class="seal-top">Terverifikasi</span>
+                <span class="seal-bot">Asli · GCM OK</span>
+              </div>
+            </div>
+
+            <div class="card annex">
+              <div class="annex-head"><span>Jejak Dekripsi</span></div>
+              <details>
+                <summary><span class="det-ind"></span><span class="det-label">Hasil dekripsi AES <span class="opt">(masih tersandi Vigenere)</span></span></summary>
+                <pre id="decVigenere" class="code-block"></pre>
+              </details>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================== KUNCI ============================= -->
+    <section class="panel" data-panel="kunci">
+      <header class="panel-head">
+        <p class="eyebrow">03 — Kunci RSA</p>
+        <h2>Manajemen Kunci RSA</h2>
+        <p class="lede">RSA hanya membungkus kunci AES — itulah inti skema hibrida: cepat sekaligus aman.</p>
+      </header>
+
+      <div class="card key-card">
+        <div class="key-head">
+          <div>
+            <p class="key-status" id="keyStatus">Menyiapkan kunci…</p>
+            <p class="key-sub">Sidik jari kunci publik (SHA-256 / SPKI, potongan)</p>
+            <p class="key-fingerprint mono" id="keyFingerprint">—</p>
+          </div>
+          <button class="btn btn-clinical" id="btnGenerate"><svg class="ico" aria-hidden="true"><use href="#i-key"/></svg><span>Buat Kunci Baru</span></button>
+        </div>
+
+        <div class="key-grid">
+          <label class="field">
+            <span class="field-label">Kunci Publik <span class="opt">SPKI · PEM</span></span>
+            <textarea id="pubPem" class="code-block" rows="8" readonly></textarea>
+          </label>
+          <label class="field">
+            <span class="field-label">Kunci Privat <span class="opt">PKCS#8 · PEM — jangan dibagikan</span></span>
+            <textarea id="privPem" class="code-block" rows="8" readonly></textarea>
+          </label>
+        </div>
+
+        <div class="actions">
+          <button class="btn btn-ghost" id="btnCopyPub"><svg class="ico" aria-hidden="true"><use href="#i-copy"/></svg><span>Salin Publik</span></button>
+          <button class="btn btn-ghost" id="btnCopyPriv"><svg class="ico" aria-hidden="true"><use href="#i-copy"/></svg><span>Salin Privat</span></button>
+          <button class="btn btn-ghost" id="btnDownloadPriv"><svg class="ico" aria-hidden="true"><use href="#i-download"/></svg><span>Unduh Privat</span></button>
+        </div>
+
+        <hr class="sep" />
+
+        <label class="field">
+          <span class="field-label">Impor kunci publik pihak lain <span class="opt">PEM</span></span>
+          <textarea id="importPub" class="code-block" rows="4" placeholder="-----BEGIN PUBLIC KEY----- … -----END PUBLIC KEY-----"></textarea>
+        </label>
+        <button class="btn btn-clinical" id="btnImportPub"><svg class="ico" aria-hidden="true"><use href="#i-download"/></svg><span>Impor Kunci Publik</span></button>
+      </div>
+    </section>
+
+    <!-- ============================= RIWAYAT ============================ -->
+    <section class="panel" data-panel="riwayat">
+      <header class="panel-head">
+        <p class="eyebrow">04 — Riwayat</p>
+        <h2>Riwayat Enkripsi</h2>
+        <p class="lede">Disimpan lokal di browser. Hanya ciphertext yang tersimpan — bukan isi rekam medis.</p>
+      </header>
+      <div class="card">
+        <table class="table">
+          <thead>
+            <tr><th>Waktu</th><th>ID RM</th><th>Nama</th><th>Algoritma</th><th class="ta-r">Aksi</th></tr>
+          </thead>
+          <tbody id="historyBody"></tbody>
+        </table>
+        <div class="actions">
+          <button class="btn btn-ghost btn-danger" id="btnClearHistory"><svg class="ico" aria-hidden="true"><use href="#i-x"/></svg><span>Bersihkan Riwayat</span></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================= TENTANG ============================ -->
+    <section class="panel" data-panel="tentang">
+      <header class="panel-head">
+        <p class="eyebrow">05 — Tentang</p>
+        <h2>Tentang Sistem</h2>
+        <p class="lede">Rekam medis adalah data paling sensitif di fasilitas kesehatan. Sistem ini berlapis mengamankannya.</p>
+      </header>
+
+      <div class="split">
+        <div class="card">
+          <h3 class="card-h">Lapisan Kriptografi</h3>
+          <ol class="doc">
+            <li><b>Vigenere Cipher</b> — substitusi polialfabetik dengan kunci berulang. Huruf non-alfabet dibiarkan agar struktur data tetap utuh. Ini penyamaran awal, bukan pengaman tunggal.</li>
+            <li><b>AES-256-GCM</b> — enkripsi simetris berkecepatan tinggi dengan autentikasi (AEAD). Perubahan 1 bit pada ciphertext akan terdeteksi.</li>
+            <li><b>RSA-2048-OAEP</b> — membungkus kunci sesi AES sehingga hanya pemegang kunci privat yang bisa membukanya. Pola <i>key encapsulation</i>.</li>
+          </ol>
+          <p class="foot-mono mono">VIGENERE + AES-256-GCM + RSA-2048-OAEP</p>
+        </div>
+
+        <div class="card">
+          <h3 class="card-h">Alur Kerja</h3>
+          <pre class="flow">Plaintext (rekam medis)
+      │
+      ▼  Vigenere(key)
+Teks tersamarkan
+      │
+      ▼  AES-256-GCM(keySesi, iv)
+      │        └── keySesi dibungkus RSA-OAEP(pubKey) → wrappedKey
+      ▼
+Payload { iv, wrappedKey, ciphertext }</pre>
+          <p class="card-sub">Dekripsi berjalan terbalik: RSA buka kunci → AES buka data → Vigenere buka teks.</p>
+        </div>
+      </div>
+
+      <div class="card warn-card">
+        <h3 class="card-h">Catatan Penting</h3>
+        <ul class="doc">
+          <li>Web demo ini berjalan <b>100% di sisi klien</b> (Web Crypto API) — tidak ada data yang dikirim ke server.</li>
+          <li>Semua kunci hanya ada di memori browser; menutup tab akan menghapusnya kecuali Anda menyimpan kunci privat.</li>
+          <li>Vigenere adalah kriptografi klasik yang mudah dipatahkan dengan analisis frekuensi; nilainya di sini adalah lapisan tambahan, bukan pengganti AES/RSA.</li>
+          <li>Untuk produksi: gunakan penyimpanan kunci (HSM / Key Vault), audit trail, kendali akses berbasis peran, dan kepatuhan regulasi rekam medis elektronik.</li>
+          <li>Jika kunci privat hilang, data <b>tidak dapat</b> dipulihkan.</li>
+        </ul>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<footer class="foot">
+  <span>SIM-RM Kripto · Pengamanan Rekam Medis Digital</span>
+  <span class="foot-mono mono">Vigenere · AES-256-GCM · RSA-2048-OAEP</span>
+</footer>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
