@@ -14,6 +14,14 @@ import {
   fingerprint,
   base64ToBuf,
 } from './hybrid.js';
+import {
+  HISTORY_KEY,
+  HISTORY_SCHEMA,
+  MAX_HISTORY,
+  buildEntry,
+  migrateEntry,
+  sanitizeEntry,
+} from './history.js';
 
 /* ============================== state ============================== */
 
@@ -25,7 +33,6 @@ const state = {
 };
 
 const AAD = 'REKAM-MEDIS-v1';
-const HISTORY_KEY = 'rm-kripto-history';
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
@@ -189,12 +196,7 @@ async function handleEncrypt(event) {
 
     renderVigenereSteps(vig.steps, $('#vigenereSteps'));
 
-    saveHistory({
-      idRekamMedis: record.idRekamMedis,
-      namaPasien: record.namaPasien,
-      alg: payload.alg,
-      payload,
-    });
+    saveHistory(payload, plaintext.length);
 
     toast('Rekam medis berhasil dienkripsi (Vigenere → AES → RSA).');
   } catch (err) {
@@ -279,22 +281,48 @@ async function handleDecrypt(event) {
 /* ============================== riwayat ============================= */
 
 function loadHistory() {
+  let raw = [];
   try {
-    state.history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+    const parsed = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+    if (Array.isArray(parsed)) raw = parsed;
   } catch {
-    state.history = [];
+    raw = [];
   }
+
+  // Migrasi idempoten: entri skema lama dimigrasikan ke skema 2.
+  // `payload` ciphertext tidak pernah disentuh → tetap dapat didekripsi.
+  let changed = false;
+  state.history = [];
+  for (const item of raw) {
+    const migrated = migrateEntry(item);
+    if (!migrated) continue;
+    state.history.push(migrated);
+    if (migrated !== item) changed = true;
+  }
+  state.history = state.history.slice(0, MAX_HISTORY);
+  if (changed) persistHistory();
+
   renderHistory();
 }
 
-function saveHistory(entry) {
-  state.history.unshift({ ...entry, waktu: new Date().toISOString() });
-  state.history = state.history.slice(0, 25);
+function persistHistory() {
   try {
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(state.history));
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(historySet(state.history)));
   } catch {
-    /* localStorage penuh / diblokir → abaikan */
+    /* localStorage penuh / diblokir → tidak menghalangi enkripsi */
   }
+}
+
+/** Buang field di luar daftar yang diperbolehkan sebelum ditulis — pengaman ekstra. */
+function historySet(list) {
+  return list.map(sanitizeEntry);
+}
+
+/** Simpan hasil enkripsi TANPA identitas pasien (skema 2). */
+function saveHistory(payload, plainLength) {
+  state.history.unshift(buildEntry({ payload, plainLength }));
+  state.history = state.history.slice(0, MAX_HISTORY);
+  persistHistory();
   renderHistory();
 }
 
@@ -306,17 +334,22 @@ function renderHistory() {
     return;
   }
   $('#btnClearHistory').disabled = false;
-  body.innerHTML = state.history.map((h, i) => `
+  body.innerHTML = state.history.map((h, i) => {
+    const ukuran = h.ukuran && h.ukuran.cipher
+      ? (h.ukuran.plain == null ? `${h.ukuran.cipher} B` : `${h.ukuran.plain} → ${h.ukuran.cipher} B`)
+      : '—';
+    return `
     <tr>
       <td class="mono small" data-label="Waktu">${new Date(h.waktu).toLocaleString('id-ID')}</td>
-      <td class="mono" data-label="ID RM">${escapeHtml(h.idRekamMedis)}</td>
-      <td data-label="Nama">${escapeHtml(h.namaPasien)}</td>
+      <td class="mono small" data-label="Ukuran">${escapeHtml(ukuran)}</td>
+      <td class="mono small" data-label="Ringkasan">${escapeHtml(h.ringkas || '—')}</td>
       <td class="mono small" data-label="Algoritma">${escapeHtml(h.alg)}</td>
       <td class="right ta-r" data-label="Aksi">
         <button class="link" data-load="${i}">Muat</button>
         <button class="link danger" data-del="${i}">Hapus</button>
       </td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
 }
 
 /* ============================== riwayat evt ========================= */

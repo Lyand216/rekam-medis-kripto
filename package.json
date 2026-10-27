@@ -4,8 +4,12 @@
   "private": true,
   "type": "module",
   "description": "Pengamanan Rekam Medis Digital — Vigenere Cipher + Kriptografi Hibrida AES-256-GCM & RSA-2048-OAEP",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "start": "npx --yes serve .",
-    "test": "node test/run.mjs"
+    "test": "node test/run.mjs",
+    "bench": "node test/bench.mjs"
   }
 }
