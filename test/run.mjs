@@ -7,6 +7,8 @@ import {
   generateRsaKeyPair,
   hybridEncrypt,
   hybridDecrypt,
+  base64ToBuf,
+  bufToBase64,
 } from '../js/hybrid.js';
 import { HISTORY_SCHEMA, buildEntry, migrateEntry, sanitizeEntry } from '../js/history.js';
 
@@ -73,6 +75,27 @@ try {
   wrongKeyRejected = true;
 }
 check('kunci privat salah ditolak', wrongKeyRejected);
+
+// Parameter struktur payload (dipakai pada Bab III: IV 12 byte, RSA-2048 -> 256 byte, tag GCM 16 byte).
+check('IV berukuran 12 byte', base64ToBuf(payload.iv).length === 12);
+check('wrappedKey berukuran 256 byte (RSA-2048)', base64ToBuf(payload.wrappedKey).length === 256);
+check('ciphertext = plaintext UTF-8 + tag GCM 16 byte',
+  base64ToBuf(payload.ciphertext).length === new TextEncoder().encode(vig.result).length + 16);
+
+// Dua enkripsi dari plaintext yang sama harus berbeda (kunci AES dan IV acak per enkripsi).
+const { payload: payload2 } = await hybridEncrypt(vig.result, pair.publicKey, { aad: 'REKAM-MEDIS-v1' });
+check('plaintext sama -> ciphertext berbeda (kunci & IV acak)',
+  payload2.ciphertext !== payload.ciphertext && payload2.iv !== payload.iv);
+
+// Integritas: ubah 1 bit IV, ubah AAD, ubah wrappedKey -> semuanya harus ditolak.
+async function ditolak(mutasi) {
+  try { await hybridDecrypt(mutasi, pair.privateKey); return false; } catch { return true; }
+}
+const ivBytes = base64ToBuf(payload.iv); ivBytes[0] ^= 1;
+check('IV diubah 1 bit ditolak', await ditolak({ ...payload, iv: bufToBase64(ivBytes) }));
+check('AAD berbeda ditolak', await ditolak({ ...payload, aad: 'REKAM-MEDIS-v2' }));
+const wkBytes = base64ToBuf(payload.wrappedKey); wkBytes[10] ^= 1;
+check('wrappedKey diubah ditolak', await ditolak({ ...payload, wrappedKey: bufToBase64(wkBytes) }));
 
 console.log('\nRiwayat — identitas pasien tidak ikut tersimpan');
 
